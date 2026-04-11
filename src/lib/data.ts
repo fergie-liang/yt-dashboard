@@ -1,0 +1,168 @@
+import { supabase } from './supabase'
+import type { Platform, Video, VideoMetrics, VideoWithLatestMetrics, KPIs, WeeklyBrief } from './types'
+
+// Platform filter helper — abstracts platform for future Instagram support
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyPlatformFilter<T>(query: T, _platform: Platform): T {
+  // Currently all data is YouTube. When Instagram is added, filter here.
+  // e.g. if (platform !== 'all') (query as any).eq('platform', platform)
+  return query
+}
+
+// Get all videos, optionally filtered by platform
+export async function getVideos(platform: Platform = 'all'): Promise<Video[]> {
+  let query = supabase
+    .from('videos')
+    .select('*')
+    .order('published_at', { ascending: false })
+
+  query = applyPlatformFilter(query, platform)
+
+  const { data, error } = await query
+  if (error) throw error
+  return data || []
+}
+
+// Get a single video by youtube_video_id
+export async function getVideo(youtubeVideoId: string): Promise<Video | null> {
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*')
+    .eq('youtube_video_id', youtubeVideoId)
+    .single()
+  if (error) return null
+  return data
+}
+
+// Get the latest metrics snapshot per video
+export async function getLatestMetricsPerVideo(platform: Platform = 'all'): Promise<VideoMetrics[]> {
+  // Get the most recent snapshot_date
+  const { data: latestDate } = await supabase
+    .from('video_metrics')
+    .select('snapshot_date')
+    .order('snapshot_date', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!latestDate) return []
+
+  const { data, error } = await supabase
+    .from('video_metrics')
+    .select('*')
+    .eq('snapshot_date', latestDate.snapshot_date)
+
+  if (error) throw error
+  return data || []
+}
+
+// Get all metrics for a specific video (for timeline chart)
+export async function getVideoMetricsHistory(youtubeVideoId: string): Promise<VideoMetrics[]> {
+  const { data, error } = await supabase
+    .from('video_metrics')
+    .select('*')
+    .eq('youtube_video_id', youtubeVideoId)
+    .order('snapshot_date', { ascending: true })
+  if (error) throw error
+  return data || []
+}
+
+// Get all metrics snapshots (for time series chart)
+export async function getAllMetricsSnapshots(platform: Platform = 'all'): Promise<VideoMetrics[]> {
+  const { data, error } = await supabase
+    .from('video_metrics')
+    .select('*')
+    .order('snapshot_date', { ascending: true })
+  if (error) throw error
+  return data || []
+}
+
+// Get videos with their latest metrics
+export async function getVideosWithMetrics(platform: Platform = 'all'): Promise<VideoWithLatestMetrics[]> {
+  const [videos, metrics] = await Promise.all([
+    getVideos(platform),
+    getLatestMetricsPerVideo(platform),
+  ])
+
+  const metricsMap = new Map(metrics.map(m => [m.youtube_video_id, m]))
+
+  return videos.map(v => ({
+    ...v,
+    latest_metrics: metricsMap.get(v.youtube_video_id) || null,
+  }))
+}
+
+// Compute KPIs from latest snapshots
+export async function getKPIs(platform: Platform = 'all'): Promise<KPIs> {
+  const [videos, metrics] = await Promise.all([
+    getVideos(platform),
+    getLatestMetricsPerVideo(platform),
+  ])
+
+  const totalViews = metrics.reduce((sum, m) => sum + (m.views || 0), 0)
+  const totalSaves = metrics.reduce((sum, m) => sum + (m.saves || 0), 0)
+  const watchThroughValues = metrics.filter(m => m.avg_percentage_viewed != null).map(m => m.avg_percentage_viewed!)
+  const avgWatchThrough = watchThroughValues.length ? watchThroughValues.reduce((a, b) => a + b, 0) / watchThroughValues.length : 0
+  const netSubscribers = metrics.reduce((sum, m) => sum + (m.subscribers_gained || 0) - (m.subscribers_lost || 0), 0)
+
+  const latestSnapshot = metrics.length ? metrics[0]?.snapshot_date : null
+
+  return {
+    totalVideos: videos.length,
+    totalViews,
+    totalSaves,
+    avgWatchThrough,
+    netSubscribers,
+    lastSynced: latestSnapshot,
+  }
+}
+
+// Get previous week's snapshot for WoW deltas
+export async function getPreviousWeekMetrics(): Promise<VideoMetrics[]> {
+  const { data: dates } = await supabase
+    .from('video_metrics')
+    .select('snapshot_date')
+    .order('snapshot_date', { ascending: false })
+
+  if (!dates || dates.length < 2) return []
+
+  const uniqueDates = [...new Set(dates.map(d => d.snapshot_date))]
+  if (uniqueDates.length < 2) return []
+
+  const previousDate = uniqueDates[1]
+  const { data, error } = await supabase
+    .from('video_metrics')
+    .select('*')
+    .eq('snapshot_date', previousDate)
+
+  if (error) return []
+  return data || []
+}
+
+// Get all weekly briefs
+export async function getWeeklyBriefs(): Promise<WeeklyBrief[]> {
+  const { data, error } = await supabase
+    .from('weekly_briefs')
+    .select('*')
+    .order('week_start', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+// Update video tags
+export async function updateVideoTags(
+  youtubeVideoId: string,
+  updates: Partial<Pick<Video, 'series_name' | 'hook_type' | 'topic_tags' | 'content_pillar'>>
+): Promise<void> {
+  const { error } = await supabase
+    .from('videos')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('youtube_video_id', youtubeVideoId)
+  if (error) throw error
+}
+
+// Batch update video tags
+export async function batchUpdateVideoTags(
+  updates: Array<{ youtube_video_id: string } & Partial<Pick<Video, 'series_name' | 'hook_type' | 'topic_tags' | 'content_pillar'>>>
+): Promise<void> {
+  await Promise.all(updates.map(({ youtube_video_id, ...tags }) => updateVideoTags(youtube_video_id, tags)))
+}

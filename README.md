@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# yt-dashboard
 
-## Getting Started
+Content performance dashboard for @ainativepm YouTube Shorts channel.
 
-First, run the development server:
+**Live:** https://ytdashboard.design4venture.com
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+- Next.js 16 (App Router)
+- Tailwind CSS v4
+- Recharts
+- Supabase JS client
+- Vercel hosting
+
+## Project Structure
+
+```
+src/
+  app/              # Next.js pages
+    page.tsx        # Overview (KPIs, charts, top performers)
+    video/[id]/     # Video detail with inline tag editing
+    analytics/      # Deep analytics (series, hooks, velocity)
+    tagging/        # Backfill untagged content
+    briefs/         # Weekly Mika briefs
+  components/       # Shared UI components
+  lib/
+    supabase.ts     # Supabase client setup
+    data.ts         # All data access (platform-abstracted)
+    types.ts        # TypeScript types
+middleware.ts       # Auth stub (ready for future auth)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Running Locally
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+cp .env.example .env.local
+# Fill in .env.local with your Supabase credentials
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Adding Instagram Later
 
-## Learn More
+The data layer in `src/lib/data.ts` is built with platform abstraction:
 
-To learn more about Next.js, take a look at the following resources:
+1. Add a `platform` column to the `videos` table: `ALTER TABLE videos ADD COLUMN platform TEXT DEFAULT 'youtube';`
+2. Add `platform` to `video_metrics` as well
+3. Uncomment the platform filter in `data.ts` `applyPlatformFilter()`
+4. Add platform toggle UI to the Overview KPI row (the `Platform` type already exists in `types.ts`)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment Variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Source |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard → Settings → API |
 
-## Deploy on Vercel
+## RLS Warning
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Row Level Security is currently **disabled** on all Supabase tables. This is fine for a private dashboard. Before making this public or adding user accounts, enable RLS:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```sql
+ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE video_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE weekly_briefs ENABLE ROW LEVEL SECURITY;
+-- Then create appropriate policies
+```

@@ -1,65 +1,114 @@
-import Image from "next/image";
+'use client'
+import { useEffect, useState, useCallback } from 'react'
+import { getKPIs, getVideosWithMetrics, getPreviousWeekMetrics, getAllMetricsSnapshots } from '@/lib/data'
+import type { KPIs, VideoWithLatestMetrics, VideoMetrics } from '@/lib/types'
+import KPICard from '@/components/KPICard'
+import PerformanceChart from '@/components/PerformanceChart'
+import TopPerformersTable from '@/components/TopPerformersTable'
+import ContentMixChart from '@/components/ContentMixChart'
+import { format } from 'date-fns'
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+export default function OverviewPage() {
+  const [kpis, setKpis] = useState<KPIs | null>(null)
+  const [videos, setVideos] = useState<VideoWithLatestMetrics[]>([])
+  const [snapshots, setSnapshots] = useState<VideoMetrics[]>([])
+  const [prevMetrics, setPrevMetrics] = useState<VideoMetrics[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const fetchData = useCallback(async () => {
+    const [k, v, s, p] = await Promise.all([
+      getKPIs(),
+      getVideosWithMetrics(),
+      getAllMetricsSnapshots(),
+      getPreviousWeekMetrics(),
+    ])
+    setKpis(k)
+    setVideos(v)
+    setSnapshots(s)
+    setPrevMetrics(p)
+    setLoading(false)
+    setRefreshing(false)
+  }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  const handleRefresh = () => {
+    setRefreshing(true)
+    fetchData()
+  }
+
+  const prevTotals = prevMetrics.reduce((acc, m) => ({
+    views: acc.views + (m.views || 0),
+    saves: acc.saves + (m.saves || 0),
+    watchThrough: acc.watchThrough + (m.avg_percentage_viewed || 0),
+    watchCount: acc.watchCount + (m.avg_percentage_viewed != null ? 1 : 0),
+    subscribers: acc.subscribers + (m.subscribers_gained || 0) - (m.subscribers_lost || 0),
+  }), { views: 0, saves: 0, watchThrough: 0, watchCount: 0, subscribers: 0 })
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-64">
+      <div className="text-slate-400 text-sm animate-pulse">Loading…</div>
     </div>
-  );
+  )
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-100">Content Performance</h1>
+          {kpis?.lastSynced && (
+            <p className="text-xs text-slate-500 mt-0.5">
+              Last synced: {format(new Date(kpis.lastSynced), 'MMM d, yyyy')}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="text-xs px-3 py-1.5 rounded border border-[#2a2d3a] text-slate-400 hover:text-slate-200 hover:border-slate-500 transition-colors disabled:opacity-50"
+        >
+          {refreshing ? 'Refreshing…' : '↻ Refresh'}
+        </button>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <KPICard
+          label="Total Videos"
+          value={kpis?.totalVideos ?? 0}
+        />
+        <KPICard
+          label="Total Views"
+          value={(kpis?.totalViews ?? 0).toLocaleString()}
+          delta={kpis && prevTotals.views ? kpis.totalViews - prevTotals.views : undefined}
+        />
+        <KPICard
+          label="Total Saves"
+          value={(kpis?.totalSaves ?? 0).toLocaleString()}
+          delta={kpis && prevTotals.saves !== undefined ? kpis.totalSaves - prevTotals.saves : undefined}
+          isNorthStar
+        />
+        <KPICard
+          label="Avg Watch-Through"
+          value={`${(kpis?.avgWatchThrough ?? 0).toFixed(1)}`}
+          suffix="%"
+        />
+        <KPICard
+          label="Net Subscribers"
+          value={kpis?.netSubscribers ?? 0}
+          delta={kpis ? kpis.netSubscribers - prevTotals.subscribers : undefined}
+        />
+      </div>
+
+      {/* Performance Chart */}
+      <PerformanceChart snapshots={snapshots} />
+
+      {/* Top Performers */}
+      <TopPerformersTable videos={videos} />
+
+      {/* Content Mix */}
+      <ContentMixChart videos={videos} />
+    </div>
+  )
 }
