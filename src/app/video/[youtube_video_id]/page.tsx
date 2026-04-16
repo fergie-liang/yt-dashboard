@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts'
-import { getVideo, getVideoMetricsHistory, getLatestMetricsPerVideo } from '@/lib/data'
+import { getVideo, getVideoMetricsHistory, getLatestMetricsPerVideo, getVideoComments } from '@/lib/data'
 import { updateVideoTags } from '@/lib/data'
-import type { Video, VideoMetrics } from '@/lib/types'
+import type { Video, VideoMetrics, VideoComment } from '@/lib/types'
 import { format } from 'date-fns'
 
 const SERIES_OPTIONS = ['Eval Framework', 'BAN Series', 'Think Like an AI PM', 'HHH', 'Model Limitation Debt', 'Standalone']
@@ -17,6 +17,7 @@ export default function VideoDetailPage() {
   const [video, setVideo] = useState<Video | null>(null)
   const [history, setHistory] = useState<VideoMetrics[]>([])
   const [allLatest, setAllLatest] = useState<VideoMetrics[]>([])
+  const [comments, setComments] = useState<VideoComment[]>([])
   const [tags, setTags] = useState({ series_name: '', hook_type: '', content_pillar: '', topic_tags: '' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -26,10 +27,12 @@ export default function VideoDetailPage() {
       getVideo(youtube_video_id),
       getVideoMetricsHistory(youtube_video_id),
       getLatestMetricsPerVideo(),
-    ]).then(([v, h, all]) => {
+      getVideoComments(youtube_video_id),
+    ]).then(([v, h, all, c]) => {
       setVideo(v)
       setHistory(h)
       setAllLatest(all)
+      setComments(c)
       if (v) setTags({
         series_name: v.series_name || '',
         hook_type: v.hook_type || '',
@@ -182,6 +185,48 @@ export default function VideoDetailPage() {
             <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Audience Comments */}
+      <div className="card space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Audience Comments</h2>
+          {comments.length > 0 && (
+            <span className="text-xs text-slate-500">{comments.length} comments · sorted by likes</span>
+          )}
+        </div>
+        {comments.length === 0 ? (
+          <p className="text-slate-500 text-xs py-4 text-center">
+            No comments synced yet — run <code className="text-blue-400">pull_youtube_metrics.py --comments</code> to pull them.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {comments.map(c => (
+              <div key={c.comment_id} className="flex gap-3 items-start">
+                {c.author_profile_image ? (
+                  <img src={c.author_profile_image} alt="" className="w-7 h-7 rounded-full flex-shrink-0 mt-0.5" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-[#2a2d3a] flex-shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-xs font-medium text-slate-300">{c.author_display_name || 'Anonymous'}</span>
+                    {c.published_at && (
+                      <span className="text-xs text-slate-600">{format(new Date(c.published_at), 'MMM d, yyyy')}</span>
+                    )}
+                    {c.like_count > 0 && (
+                      <span className="text-xs text-slate-500 ml-auto">♥ {c.like_count.toLocaleString()}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">{c.text_display}</p>
+                  {c.reply_count > 0 && (
+                    <p className="text-xs text-slate-600 mt-0.5">{c.reply_count} {c.reply_count === 1 ? 'reply' : 'replies'}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

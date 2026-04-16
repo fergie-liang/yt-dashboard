@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const links = [
-  { href: '/', label: 'Overview' },
+  { href: '/', label: 'YouTube' },
+  { href: '/instagram', label: 'Instagram' },
   { href: '/analytics', label: 'Analytics' },
   { href: '/tagging', label: 'Tagging' },
   { href: '/briefs', label: 'Briefs' },

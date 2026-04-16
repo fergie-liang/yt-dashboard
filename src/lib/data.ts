@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Platform, Video, VideoMetrics, VideoWithLatestMetrics, KPIs, WeeklyBrief } from './types'
+import type { Platform, Video, VideoMetrics, VideoWithLatestMetrics, KPIs, WeeklyBrief, InstagramReel, InstagramReelMetrics, InstagramReelWithLatestMetrics, InstagramKPIs, VideoComment, InstagramReelComment } from './types'
 
 // Platform filter helper — abstracts platform for future Instagram support
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -165,4 +165,103 @@ export async function batchUpdateVideoTags(
   updates: Array<{ youtube_video_id: string } & Partial<Pick<Video, 'series_name' | 'hook_type' | 'topic_tags' | 'content_pillar'>>>
 ): Promise<void> {
   await Promise.all(updates.map(({ youtube_video_id, ...tags }) => updateVideoTags(youtube_video_id, tags)))
+}
+
+// ── Instagram ────────────────────────────────────────────────────────────────
+
+export async function getInstagramReels(): Promise<InstagramReel[]> {
+  const { data, error } = await supabase
+    .from('instagram_reels')
+    .select('*')
+    .order('published_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+export async function getLatestInstagramMetrics(): Promise<InstagramReelMetrics[]> {
+  const { data: latestDate } = await supabase
+    .from('instagram_reel_metrics')
+    .select('snapshot_date')
+    .order('snapshot_date', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!latestDate) return []
+
+  const { data, error } = await supabase
+    .from('instagram_reel_metrics')
+    .select('*')
+    .eq('snapshot_date', latestDate.snapshot_date)
+
+  if (error) throw error
+  return data || []
+}
+
+export async function getInstagramReelsWithMetrics(): Promise<InstagramReelWithLatestMetrics[]> {
+  const [reels, metrics] = await Promise.all([
+    getInstagramReels(),
+    getLatestInstagramMetrics(),
+  ])
+  const metricsMap = new Map(metrics.map(m => [m.instagram_media_id, m]))
+  return reels.map(r => ({
+    ...r,
+    latest_metrics: metricsMap.get(r.instagram_media_id) || null,
+  }))
+}
+
+export async function getInstagramKPIs(): Promise<InstagramKPIs> {
+  const [reels, metrics] = await Promise.all([
+    getInstagramReels(),
+    getLatestInstagramMetrics(),
+  ])
+
+  const totalReach = metrics.reduce((sum, m) => sum + (m.reach || 0), 0)
+  const totalSaved = metrics.reduce((sum, m) => sum + (m.saved || 0), 0)
+  const totalInteractions = metrics.reduce((sum, m) => sum + (m.total_interactions || 0), 0)
+  const watchTimes = metrics.filter(m => m.avg_watch_time_ms != null).map(m => m.avg_watch_time_ms! / 1000)
+  const avgWatchTimeSeconds = watchTimes.length ? watchTimes.reduce((a, b) => a + b, 0) / watchTimes.length : 0
+  const lastSynced = metrics.length ? metrics[0]?.snapshot_date : null
+
+  return { totalReels: reels.length, totalReach, totalSaved, avgWatchTimeSeconds, totalInteractions, lastSynced }
+}
+
+export async function getInstagramReelsForTagging(): Promise<InstagramReel[]> {
+  const { data, error } = await supabase
+    .from('instagram_reels')
+    .select('*')
+    .order('published_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+export async function linkReelToVideo(instagramMediaId: string, youtubeVideoId: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('instagram_reels')
+    .update({ youtube_video_id: youtubeVideoId, updated_at: new Date().toISOString() })
+    .eq('instagram_media_id', instagramMediaId)
+  if (error) throw error
+}
+
+// ── Comments ─────────────────────────────────────────────────────────────────
+
+export async function getVideoComments(youtubeVideoId: string): Promise<VideoComment[]> {
+  const { data, error } = await supabase
+    .from('video_comments')
+    .select('*')
+    .eq('youtube_video_id', youtubeVideoId)
+    .order('like_count', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return data || []
+}
+
+export async function getInstagramReelComments(instagramMediaId: string): Promise<InstagramReelComment[]> {
+  const { data, error } = await supabase
+    .from('instagram_reel_comments')
+    .select('*')
+    .eq('instagram_media_id', instagramMediaId)
+    .order('timestamp', { ascending: false })
+    .limit(50)
+  if (error) throw error
+  return data || []
 }
