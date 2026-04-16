@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts'
-import { getVideo, getVideoMetricsHistory, getLatestMetricsPerVideo } from '@/lib/data'
+import { getVideo, getVideoMetricsHistory, getLatestMetricsPerVideo, saveVideoNotes } from '@/lib/data'
 import { updateVideoTags } from '@/lib/data'
 import type { Video, VideoMetrics } from '@/lib/types'
 import { format } from 'date-fns'
@@ -20,6 +20,9 @@ export default function VideoDetailPage() {
   const [tags, setTags] = useState({ series_name: '', hook_type: '', content_pillar: '', topic_tags: '' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [notes, setNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [savedNotes, setSavedNotes] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -30,14 +33,25 @@ export default function VideoDetailPage() {
       setVideo(v)
       setHistory(h)
       setAllLatest(all)
-      if (v) setTags({
-        series_name: v.series_name || '',
-        hook_type: v.hook_type || '',
-        content_pillar: v.content_pillar || '',
-        topic_tags: (v.topic_tags || []).join(', '),
-      })
+      if (v) {
+        setTags({
+          series_name: v.series_name || '',
+          hook_type: v.hook_type || '',
+          content_pillar: v.content_pillar || '',
+          topic_tags: (v.topic_tags || []).join(', '),
+        })
+        setNotes(v.notes || '')
+      }
     })
   }, [youtube_video_id])
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true)
+    await saveVideoNotes(youtube_video_id, notes)
+    setSavingNotes(false)
+    setSavedNotes(true)
+    setTimeout(() => setSavedNotes(false), 2000)
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -146,6 +160,25 @@ export default function VideoDetailPage() {
           className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
         >
           {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Tags'}
+        </button>
+      </div>
+
+      {/* Notes */}
+      <div className="card space-y-3">
+        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Notes</h2>
+        <textarea
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="What worked? What didn't? Observations about this video…"
+          rows={4}
+          className="w-full text-sm bg-[#0f1117] border border-[#2a2d3a] rounded px-3 py-2 text-slate-200 placeholder-slate-600 resize-none focus:outline-none focus:border-slate-500"
+        />
+        <button
+          onClick={handleSaveNotes}
+          disabled={savingNotes}
+          className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
+        >
+          {savingNotes ? 'Saving…' : savedNotes ? '✓ Saved' : 'Save Notes'}
         </button>
       </div>
 

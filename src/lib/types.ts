@@ -12,6 +12,7 @@ export interface Video {
   hook_type: string | null
   topic_tags: string[] | null
   content_pillar: string | null
+  notes: string | null
   created_at: string
   updated_at: string
   platform?: Platform
@@ -63,4 +64,52 @@ export interface KPIDeltas {
   saves: number
   watchThrough: number
   subscribers: number
+}
+
+// ── Instagram ────────────────────────────────────────────────────────────────
+
+export interface InstagramReel {
+  id: string
+  instagram_media_id: string
+  youtube_video_id: string | null
+  caption: string | null
+  permalink: string | null
+  published_at: string
+  duration_seconds: number | null
+  thumbnail_url: string | null
+  series_name: string | null
+  hook_type: string | null
+  topic_tags: string[] | null
+  content_pillar: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface InstagramReelMetrics {
+  id: string
+  instagram_media_id: string
+  snapshot_date: string
+  reach: number
+  likes: number
+  comments: number
+  shares: number
+  saved: number
+  total_interactions: number
+  avg_watch_time_ms: number | null
+  total_view_time_ms: number | null
+  created_at: string
+}
+
+export interface InstagramReelWithLatestMetrics extends InstagramReel {
+  latest_metrics: InstagramReelMetrics | null
+}
+
+export interface InstagramKPIs {
+  totalReels: number
+  totalReach: number
+  totalSaved: number
+  avgWatchTimeSeconds: number
+  totalInteractions: number
+  lastSynced: string | null
 }
