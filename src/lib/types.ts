@@ -1,4 +1,5 @@
 export type Platform = 'youtube' | 'instagram' | 'all'
+export type YoutubeChannel = 'aipm' | 'fergie' | 'all'
 
 export interface Video {
   id: string
@@ -12,6 +13,7 @@ export interface Video {
   hook_type: string | null
   topic_tags: string[] | null
   content_pillar: string | null
+  channel: YoutubeChannel
   created_at: string
   updated_at: string
   platform?: Platform

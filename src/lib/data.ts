@@ -1,22 +1,17 @@
 import { supabase } from './supabase'
-import type { Platform, Video, VideoMetrics, VideoWithLatestMetrics, KPIs, WeeklyBrief, InstagramReel, InstagramReelMetrics, InstagramReelWithLatestMetrics, InstagramKPIs, VideoComment, InstagramReelComment } from './types'
+import type { Platform, YoutubeChannel, Video, VideoMetrics, VideoWithLatestMetrics, KPIs, WeeklyBrief, InstagramReel, InstagramReelMetrics, InstagramReelWithLatestMetrics, InstagramKPIs, VideoComment, InstagramReelComment } from './types'
 
-// Platform filter helper — abstracts platform for future Instagram support
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyPlatformFilter<T>(query: T, _platform: Platform): T {
-  // Currently all data is YouTube. When Instagram is added, filter here.
-  // e.g. if (platform !== 'all') (query as any).eq('platform', platform)
-  return query
-}
-
-// Get all videos, optionally filtered by platform
-export async function getVideos(platform: Platform = 'all'): Promise<Video[]> {
+// Get all videos, optionally filtered by channel
+export async function getVideos(channel: YoutubeChannel = 'all'): Promise<Video[]> {
   let query = supabase
     .from('videos')
     .select('*')
     .order('published_at', { ascending: false })
 
-  query = applyPlatformFilter(query, platform)
+  if (channel !== 'all') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query = (query as any).eq('channel', channel)
+  }
 
   const { data, error } = await query
   if (error) throw error
@@ -35,22 +30,34 @@ export async function getVideo(youtubeVideoId: string): Promise<Video | null> {
 }
 
 // Get the latest metrics snapshot per video
-export async function getLatestMetricsPerVideo(platform: Platform = 'all'): Promise<VideoMetrics[]> {
-  // Get the most recent snapshot_date
-  const { data: latestDate } = await supabase
+export async function getLatestMetricsPerVideo(channel: YoutubeChannel = 'all'): Promise<VideoMetrics[]> {
+  // Get the most recent snapshot_date for this channel
+  let dateQuery = supabase
     .from('video_metrics')
     .select('snapshot_date')
     .order('snapshot_date', { ascending: false })
     .limit(1)
     .single()
 
+  if (channel !== 'all') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dateQuery = (dateQuery as any).eq('channel', channel)
+  }
+
+  const { data: latestDate } = await dateQuery
   if (!latestDate) return []
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('video_metrics')
     .select('*')
     .eq('snapshot_date', latestDate.snapshot_date)
 
+  if (channel !== 'all') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query = (query as any).eq('channel', channel)
+  }
+
+  const { data, error } = await query
   if (error) throw error
   return data || []
 }
@@ -67,20 +74,27 @@ export async function getVideoMetricsHistory(youtubeVideoId: string): Promise<Vi
 }
 
 // Get all metrics snapshots (for time series chart)
-export async function getAllMetricsSnapshots(platform: Platform = 'all'): Promise<VideoMetrics[]> {
-  const { data, error } = await supabase
+export async function getAllMetricsSnapshots(channel: YoutubeChannel = 'all'): Promise<VideoMetrics[]> {
+  let query = supabase
     .from('video_metrics')
     .select('*')
     .order('snapshot_date', { ascending: true })
+
+  if (channel !== 'all') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query = (query as any).eq('channel', channel)
+  }
+
+  const { data, error } = await query
   if (error) throw error
   return data || []
 }
 
 // Get videos with their latest metrics
-export async function getVideosWithMetrics(platform: Platform = 'all'): Promise<VideoWithLatestMetrics[]> {
+export async function getVideosWithMetrics(channel: YoutubeChannel = 'all'): Promise<VideoWithLatestMetrics[]> {
   const [videos, metrics] = await Promise.all([
-    getVideos(platform),
-    getLatestMetricsPerVideo(platform),
+    getVideos(channel),
+    getLatestMetricsPerVideo(channel),
   ])
 
   const metricsMap = new Map(metrics.map(m => [m.youtube_video_id, m]))
@@ -92,10 +106,10 @@ export async function getVideosWithMetrics(platform: Platform = 'all'): Promise<
 }
 
 // Compute KPIs from latest snapshots
-export async function getKPIs(platform: Platform = 'all'): Promise<KPIs> {
+export async function getKPIs(channel: YoutubeChannel = 'all'): Promise<KPIs> {
   const [videos, metrics] = await Promise.all([
-    getVideos(platform),
-    getLatestMetricsPerVideo(platform),
+    getVideos(channel),
+    getLatestMetricsPerVideo(channel),
   ])
 
   const totalViews = metrics.reduce((sum, m) => sum + (m.views || 0), 0)
