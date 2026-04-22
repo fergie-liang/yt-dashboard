@@ -131,23 +131,35 @@ export async function getKPIs(channel: YoutubeChannel = 'all'): Promise<KPIs> {
 }
 
 // Get previous week's snapshot for WoW deltas
-export async function getPreviousWeekMetrics(): Promise<VideoMetrics[]> {
-  const { data: dates } = await supabase
+export async function getPreviousWeekMetrics(channel: YoutubeChannel = 'all'): Promise<VideoMetrics[]> {
+  let datesQuery = supabase
     .from('video_metrics')
     .select('snapshot_date')
     .order('snapshot_date', { ascending: false })
 
+  if (channel !== 'all') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    datesQuery = (datesQuery as any).eq('channel', channel)
+  }
+
+  const { data: dates } = await datesQuery
   if (!dates || dates.length < 2) return []
 
   const uniqueDates = [...new Set(dates.map(d => d.snapshot_date))]
   if (uniqueDates.length < 2) return []
 
   const previousDate = uniqueDates[1]
-  const { data, error } = await supabase
+  let query = supabase
     .from('video_metrics')
     .select('*')
     .eq('snapshot_date', previousDate)
 
+  if (channel !== 'all') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query = (query as any).eq('channel', channel)
+  }
+
+  const { data, error } = await query
   if (error) return []
   return data || []
 }

@@ -27,7 +27,7 @@ export default function YouTubePage() {
       getKPIs(ch),
       getVideosWithMetrics(ch),
       getAllMetricsSnapshots(ch),
-      getPreviousWeekMetrics(),
+      getPreviousWeekMetrics(ch),
     ])
     setKpis(k)
     setVideos(v)
