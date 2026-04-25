@@ -155,8 +155,8 @@ export default function InstagramPage() {
                         {r.thumbnail_url && (
                           <img src={r.thumbnail_url} alt="" className="w-10 h-14 object-cover rounded flex-shrink-0" />
                         )}
-                        <span className="text-slate-200 group-hover:text-pink-400 transition-colors line-clamp-2 text-xs leading-tight">
-                          {(r.caption ?? '').slice(0, 80) || r.instagram_media_id}
+                        <span className="text-slate-200 group-hover:text-pink-400 transition-colors line-clamp-3 text-xs leading-tight">
+                          {r.caption || r.instagram_media_id}
                         </span>
                       </a>
                     </td>
