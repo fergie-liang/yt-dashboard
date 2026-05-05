@@ -7,9 +7,6 @@ const links = [
   { href: '/instagram', label: 'Instagram' },
   { href: '/email', label: 'Email' },
   { href: '/sales', label: 'Sales' },
-  { href: '/analytics', label: 'Analytics' },
-  { href: '/tagging', label: 'Tagging' },
-  { href: '/briefs', label: 'Briefs' },
 ]
 
 export default function Nav() {
