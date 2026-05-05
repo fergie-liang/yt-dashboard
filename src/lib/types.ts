@@ -1,5 +1,5 @@
 export type Platform = 'youtube' | 'instagram' | 'all'
-export type YoutubeChannel = 'aipm' | 'fergie' | 'all'
+export type YoutubeChannel = 'aipm' | 'fergie' | 'founder' | 'all'
 
 export interface Video {
   id: string

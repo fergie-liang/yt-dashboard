@@ -9,8 +9,9 @@ import ContentMixChart from '@/components/ContentMixChart'
 import { format } from 'date-fns'
 
 const CHANNELS: { key: YoutubeChannel; label: string; handle: string; color: string }[] = [
-  { key: 'aipm',   label: 'AI Native PM',     handle: '@ainativepm',      color: 'text-blue-400 border-blue-500/50 bg-blue-500/10' },
-  { key: 'fergie', label: 'AI Native Fergie',  handle: '@ainative-fergie', color: 'text-purple-400 border-purple-500/50 bg-purple-500/10' },
+  { key: 'aipm',    label: 'AI Native PM',      handle: '@ainativepm',       color: 'text-blue-400 border-blue-500/50 bg-blue-500/10' },
+  { key: 'fergie',  label: 'AI Native Fergie',  handle: '@ainative-fergie',  color: 'text-purple-400 border-purple-500/50 bg-purple-500/10' },
+  { key: 'founder', label: 'AI Native Founder', handle: '@ainativefounder',  color: 'text-orange-400 border-orange-500/50 bg-orange-500/10' },
 ]
 
 export default function YouTubePage() {
