@@ -29,36 +29,36 @@ export async function getVideo(youtubeVideoId: string): Promise<Video | null> {
   return data
 }
 
-// Get the latest metrics snapshot per video
+// Get the latest metrics snapshot per video (most recent snapshot per individual video)
 export async function getLatestMetricsPerVideo(channel: YoutubeChannel = 'all'): Promise<VideoMetrics[]> {
-  // Get the most recent snapshot_date for this channel
+  // Fetch all metrics ordered by snapshot_date DESC, then deduplicate per video in JS.
+  // This ensures each video gets its own most-recent snapshot rather than forcing all
+  // videos to share a single globally-latest snapshot date (which would exclude any
+  // video not captured in that specific run).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let dateQuery: any = supabase
-    .from('video_metrics')
-    .select('snapshot_date')
-    .order('snapshot_date', { ascending: false })
-    .limit(1)
-
-  if (channel !== 'all') {
-    dateQuery = dateQuery.eq('channel', channel)
-  }
-
-  const { data: latestDate } = await dateQuery.single()
-  if (!latestDate) return []
-
-  let query = supabase
+  let query: any = supabase
     .from('video_metrics')
     .select('*')
-    .eq('snapshot_date', latestDate.snapshot_date)
+    .order('snapshot_date', { ascending: false })
 
   if (channel !== 'all') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    query = (query as any).eq('channel', channel)
+    query = query.eq('channel', channel)
   }
 
   const { data, error } = await query
   if (error) throw error
-  return data || []
+  if (!data) return []
+
+  // Keep only the first (most recent) row per youtube_video_id
+  const seen = new Set<string>()
+  const latest: VideoMetrics[] = []
+  for (const row of data as VideoMetrics[]) {
+    if (!seen.has(row.youtube_video_id)) {
+      seen.add(row.youtube_video_id)
+      latest.push(row)
+    }
+  }
+  return latest
 }
 
 // Get all metrics for a specific video (for timeline chart)
