@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 const TOKEN = process.env.GUMROAD_ACCESS_TOKEN!
 const BASE = 'https://api.gumroad.com/v2'
 
@@ -11,8 +13,8 @@ export async function GET() {
   try {
     // Fetch products and all sales pages in parallel
     const [productsRes, firstSalesRes] = await Promise.all([
-      fetch(`${BASE}/products?access_token=${TOKEN}`, { next: { revalidate: 300 } }),
-      fetch(`${BASE}/sales?access_token=${TOKEN}`, { next: { revalidate: 300 } }),
+      fetch(`${BASE}/products?access_token=${TOKEN}`, { cache: 'no-store' }),
+      fetch(`${BASE}/sales?access_token=${TOKEN}`, { cache: 'no-store' }),
     ])
 
     const [productsData, firstSalesData] = await Promise.all([
@@ -38,7 +40,7 @@ export async function GET() {
     while (pageKey) {
       const res = await fetch(
         `${BASE}/sales?access_token=${TOKEN}&page_key=${pageKey}`,
-        { next: { revalidate: 300 } }
+        { cache: 'no-store' }
       )
       const data = await res.json()
       allSales.push(...(data.sales ?? []))

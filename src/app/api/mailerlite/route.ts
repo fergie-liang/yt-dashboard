@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY!
 const BASE = 'https://connect.mailerlite.com/api'
 
@@ -21,7 +23,7 @@ export async function GET() {
 
   try {
     // Fetch all groups
-    const groupsRes = await fetch(`${BASE}/groups?limit=25`, { headers, next: { revalidate: 300 } })
+    const groupsRes = await fetch(`${BASE}/groups?limit=25`, { headers, cache: 'no-store' })
     const groupsData = await groupsRes.json()
     const groups = (groupsData.data ?? []).map((g: any) => ({
       id: g.id,
@@ -37,7 +39,7 @@ export async function GET() {
     }))
 
     // Fetch account-level stats
-    const statsRes = await fetch(`${BASE}/subscribers?limit=1`, { headers, next: { revalidate: 300 } })
+    const statsRes = await fetch(`${BASE}/subscribers?limit=1`, { headers, cache: 'no-store' })
     const statsData = await statsRes.json()
     const totalActive = groups.reduce((sum: number, g: any) => sum + g.active_count, 0)
 
