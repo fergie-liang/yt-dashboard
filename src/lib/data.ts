@@ -32,19 +32,18 @@ export async function getVideo(youtubeVideoId: string): Promise<Video | null> {
 // Get the latest metrics snapshot per video
 export async function getLatestMetricsPerVideo(channel: YoutubeChannel = 'all'): Promise<VideoMetrics[]> {
   // Get the most recent snapshot_date for this channel
-  let dateQuery = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let dateQuery: any = supabase
     .from('video_metrics')
     .select('snapshot_date')
     .order('snapshot_date', { ascending: false })
     .limit(1)
-    .single()
 
   if (channel !== 'all') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dateQuery = (dateQuery as any).eq('channel', channel)
+    dateQuery = dateQuery.eq('channel', channel)
   }
 
-  const { data: latestDate } = await dateQuery
+  const { data: latestDate } = await dateQuery.single()
   if (!latestDate) return []
 
   let query = supabase

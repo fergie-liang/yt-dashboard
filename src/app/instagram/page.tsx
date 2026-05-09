@@ -32,9 +32,14 @@ export default function InstagramPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true)
-    fetchData()
+    try {
+      await fetchData()
+    } catch (e) {
+      console.error('Refresh failed:', e)
+      setRefreshing(false)
+    }
   }
 
   const handleToggleComments = async (mediaId: string) => {

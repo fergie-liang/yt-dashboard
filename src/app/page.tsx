@@ -43,9 +43,14 @@ export default function YouTubePage() {
     fetchData(channel)
   }, [channel, fetchData])
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true)
-    fetchData(channel)
+    try {
+      await fetchData(channel)
+    } catch (e) {
+      console.error('Refresh failed:', e)
+      setRefreshing(false)
+    }
   }
 
   const prevTotals = prevMetrics.reduce((acc, m) => ({
